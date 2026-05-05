@@ -1,0 +1,43 @@
+# =============================================================================
+# Override file applied on top of the upstream CVAT docker-compose.yml.
+# It mounts the project's data/cvat_shared directory into the CVAT server and
+# worker containers as /home/django/share, so labelers can pick images
+# directly from the project.
+#
+# Usage:
+#   bash setup_cvat.sh up
+# =============================================================================
+
+services:
+  cvat_server:
+    environment:
+      CVAT_SHARE_NAME: "share"
+      CVAT_SHARE_DIR: "/home/django/share"
+    volumes:
+      - cvat_share:/home/django/share:rw
+
+  cvat_worker_import:
+    volumes:
+      - cvat_share:/home/django/share:rw
+
+  cvat_worker_export:
+    volumes:
+      - cvat_share:/home/django/share:rw
+
+  cvat_worker_annotation:
+    volumes:
+      - cvat_share:/home/django/share:rw
+
+  cvat_worker_quality_reports:
+    volumes:
+      - cvat_share:/home/django/share:rw
+
+volumes:
+  cvat_share:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      # Path on the host to be exposed inside CVAT as /home/django/share.
+      # Default value is set by setup_cvat.sh based on .env / repo layout.
+      device: ${CVAT_SHARE_PATH}

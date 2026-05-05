@@ -1,0 +1,46 @@
+# =============================================================================
+# drawing_segmenter (YOLO11m-seg) - element segmentation labels
+# =============================================================================
+# IMPORTANT: order is the canonical class_id order. Do NOT rearrange after
+# datasets have been built; appending new classes at the end is allowed.
+# =============================================================================
+
+model_id: drawing_segmenter
+task: segmentation
+base_model: yolo11m-seg.pt
+
+classes:
+  - id: 0
+    name: visible_geometry
+    description: Solid object outlines (continuous thick lines).
+  - id: 1
+    name: hidden_geometry
+    description: Dashed lines representing hidden edges.
+  - id: 2
+    name: centerline
+    description: Dash-dot center / axis lines.
+  - id: 3
+    name: dimension_graphics
+    description: Dimension lines, arrowheads, extension lines, leader lines and dimension values.
+  - id: 4
+    name: text
+    description: Annotations, labels, free-form notes (NOT inside title block).
+  - id: 5
+    name: hatch
+    description: Section hatching, cross-hatch fill.
+  - id: 6
+    name: break_symbol
+    description: Conventional break / interruption marks.
+  - id: 7
+    name: frame_titleblock
+    description: Drawing border, title block, parts table.
+  - id: 8
+    name: stamp_signature
+    description: Approval stamps, signatures, OTK marks, seals.
+  - id: 9
+    name: noise
+    description: Scan artifacts, dirt, holes, fold marks, irrelevant marks - to be ignored downstream.
+
+# Tile inference defaults (used by drawing2dxf at runtime).
+tile_size: 1024
+overlap: 128

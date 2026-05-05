@@ -1,0 +1,50 @@
+# =============================================================================
+# Training configuration for page_router (YOLO11s-cls)
+# Consumed by scripts/train_page_cls.py
+# Output goes ONLY to runs/page_cls/<name>.
+# =============================================================================
+
+model: yolo11s-cls.pt
+
+# Path to classification dataset root (Ultralytics expects train/ val/ test/ subdirs).
+data: data/datasets/page_cls
+
+# Training hyperparameters
+epochs: 80
+imgsz: 640
+batch: 64
+patience: 25
+optimizer: AdamW
+lr0: 0.001
+cos_lr: true
+weight_decay: 0.0005
+seed: 42
+deterministic: true
+workers: 8
+
+# Augmentations
+hsv_h: 0.0
+hsv_s: 0.0
+hsv_v: 0.1
+degrees: 2.0
+translate: 0.02
+scale: 0.1
+shear: 0.0
+perspective: 0.0
+flipud: 0.0
+fliplr: 0.0
+mosaic: 0.0
+mixup: 0.0
+erasing: 0.1
+
+# Output
+project: runs/page_cls
+name: train
+exist_ok: false
+plots: true
+save: true
+save_period: -1
+
+# Validation / metrics
+val: true
+verbose: true

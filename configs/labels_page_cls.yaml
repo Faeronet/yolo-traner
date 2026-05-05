@@ -1,0 +1,34 @@
+# =============================================================================
+# page_router (YOLO11s-cls) - whole-page classification labels
+# =============================================================================
+# IMPORTANT: order is the canonical class_id order. Do NOT rearrange after
+# datasets have been built; appending new classes at the end is allowed.
+# =============================================================================
+
+model_id: page_router
+task: classification
+base_model: yolo11s-cls.pt
+
+classes:
+  - id: 0
+    name: detail_drawing
+    description: Single-part technical drawing (one detail, possibly with views and dimensions).
+  - id: 1
+    name: assembly_drawing
+    description: Multi-part assembly drawing with item numbers / leaders.
+  - id: 2
+    name: specification_sheet
+    description: Specification / parts list table; mostly text, no geometry to vectorize.
+  - id: 3
+    name: bad_scan
+    description: Unreadable scan (severe blur, glare, missing parts, scanner artefacts dominating).
+  - id: 4
+    name: unknown
+    description: Anything else - covers, photos, blank pages, irrelevant content.
+
+# Routing thresholds consumed by drawing2dxf in production.
+thresholds:
+  # If P(specification_sheet) >= this -> skip the page entirely.
+  skip_specification_threshold: 0.95
+  # If P(detail_drawing) + P(assembly_drawing) >= this -> send to segmentation.
+  process_drawing_threshold: 0.70

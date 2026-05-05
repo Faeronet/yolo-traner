@@ -1,0 +1,117 @@
+# =============================================================================
+# yolo-train .gitignore
+# =============================================================================
+# Strict separation of zones:
+#   data/            -> never tracked (large binary data, scans, datasets)
+#   runs/            -> never tracked (training experiments are reproducible)
+#   model_registry/  -> contents NOT tracked by default; promote artifacts via
+#                       releases / DVC / Git LFS if needed
+#   model_packages/  -> not tracked; produced from model_registry/ on demand
+# =============================================================================
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual environments ----------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# --- Jupyter / IPython -------------------------------------------------------
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+
+# --- Tests / coverage --------------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.cache
+nosetests.xml
+
+# --- Linters / type checkers -------------------------------------------------
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.pytype/
+
+# --- IDE / OS ----------------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- Environment -------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+
+# --- Project zones (never tracked) -------------------------------------------
+data/raw/**
+data/scans/**
+data/pages/**
+data/cvat_shared/**
+data/cvat_exports/**
+data/datasets/**
+data/tiles/**
+data/splits/**
+data/inventory/**
+data/reports/**
+
+runs/page_cls/**
+runs/drawing_seg/**
+runs/predictions/**
+
+model_registry/page_router/**
+model_registry/drawing_segmenter/**
+!model_registry/page_router/.gitkeep
+!model_registry/drawing_segmenter/.gitkeep
+
+model_packages/*
+!model_packages/.gitkeep
+
+# --- Keep .gitkeep markers for empty zone roots ------------------------------
+!**/.gitkeep
+
+# --- CVAT local infra (data volumes) -----------------------------------------
+infra/cvat/cvat_data/
+infra/cvat/cvat_logs/
+infra/cvat/cvat_keys/
+infra/cvat/cvat_db/
+infra/cvat/cvat_events/
+infra/cvat/.env
+
+# --- Misc --------------------------------------------------------------------
+*.log
+*.tmp

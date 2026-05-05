@@ -1,0 +1,61 @@
+# =============================================================================
+# Training configuration for drawing_segmenter (YOLO11m-seg)
+# Consumed by scripts/train_drawing_seg.py
+# Output goes ONLY to runs/drawing_seg/<name>.
+# =============================================================================
+
+model: yolo11m-seg.pt
+
+# Tiled dataset (preferred). If you want to train on the full-page dataset,
+# point this at data/datasets/drawing_seg/data.yaml instead.
+data: data/datasets/drawing_seg_tiles/data.yaml
+
+# Training hyperparameters
+epochs: 150
+imgsz: 1024
+batch: 8
+patience: 30
+optimizer: AdamW
+lr0: 0.001
+cos_lr: true
+weight_decay: 0.0005
+seed: 42
+deterministic: true
+workers: 8
+
+# Loss balance
+box: 7.5
+cls: 0.5
+dgl: 1.5
+
+# Augmentations - drawings are line art, no color jitter, no mosaic.
+hsv_h: 0.0
+hsv_s: 0.0
+hsv_v: 0.0
+degrees: 1.5
+translate: 0.02
+scale: 0.05
+shear: 0.0
+perspective: 0.0
+flipud: 0.0
+fliplr: 0.0
+mosaic: 0.0
+mixup: 0.0
+copy_paste: 0.0
+erasing: 0.0
+
+# Output
+project: runs/drawing_seg
+name: train
+exist_ok: false
+plots: true
+save: true
+save_period: -1
+
+# Validation / metrics
+val: true
+verbose: true
+
+# Tiling defaults (consumed by tile_seg_dataset.py and stored in model_manifest.json)
+tile_size: 1024
+overlap: 128

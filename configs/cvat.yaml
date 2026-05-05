@@ -1,0 +1,39 @@
+# =============================================================================
+# CVAT integration config
+# Consumed by scripts/create_cvat_tasks.py and scripts/export_cvat_annotations.py
+# =============================================================================
+
+api:
+  url_env: CVAT_API_URL
+  user_env: CVAT_API_USER
+  password_env: CVAT_API_PASSWORD
+  ssl_verify: true
+
+# CVAT shared mount: data/cvat_shared on host -> /home/django/share inside CVAT.
+share:
+  host_path: data/cvat_shared
+  container_path: /home/django/share
+
+projects:
+  page_classification:
+    name_env: CVAT_PROJECT_PAGE_CLS
+    default_name: D2DXF_PAGE_CLASSIFICATION
+    labels_file: configs/labels_page_cls.yaml
+    # Page classification is done via task-level tags, not per-image polygons.
+    annotation_type: tag
+    images_dir: page_classification
+    export_format: "CVAT for images 1.1"
+    export_dir: data/cvat_exports/page_classification
+
+  drawing_segmentation:
+    name_env: CVAT_PROJECT_DRAWING_SEG
+    default_name: D2DXF_DRAWING_SEGMENTATION
+    labels_file: configs/labels_drawing_seg.yaml
+    annotation_type: polygon
+    images_dir: drawing_segmentation
+    # YOLO segmentation export is the canonical format for the build script.
+    export_format: "Ultralytics YOLO Segmentation 1.0"
+    export_dir: data/cvat_exports/drawing_segmentation
+
+# Maximum images per CVAT task. Larger tasks are split automatically.
+task_size: 200

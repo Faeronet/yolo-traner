@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yolo-train"
+version = "0.1.0"
+description = "Training pipeline for drawing2dxf models: page_router (YOLO11s-cls) and drawing_segmenter (YOLO11m-seg)."
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "Proprietary" }
+authors = [{ name = "drawing2dxf team" }]
+dependencies = [
+    "ultralytics>=8.3.0",
+    "torch>=2.1.0",
+    "torchvision>=0.16.0",
+    "onnx>=1.15.0",
+    "onnxruntime>=1.17.0",
+    "Pillow>=10.0.0",
+    "opencv-python-headless>=4.8.0",
+    "pypdfium2>=4.25.0",
+    "PyMuPDF>=1.24.0",
+    "rarfile>=4.2",
+    "py7zr>=0.21.0",
+    "numpy>=1.26.0",
+    "pandas>=2.1.0",
+    "pyyaml>=6.0.1",
+    "tqdm>=4.66.0",
+    "python-dotenv>=1.0.0",
+    "click>=8.1.7",
+    "rich>=13.7.0",
+    "jsonschema>=4.21.0",
+    "cvat-sdk>=2.14.0",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0", "ruff>=0.4.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "scripts", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+pythonpath = ["src"]

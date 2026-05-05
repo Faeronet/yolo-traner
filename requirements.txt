@@ -1,0 +1,34 @@
+# Core ML
+ultralytics>=8.3.0
+torch>=2.1.0
+torchvision>=0.16.0
+onnx>=1.15.0
+onnxruntime>=1.17.0
+
+# Imaging / PDF
+Pillow>=10.0.0
+opencv-python-headless>=4.8.0
+pypdfium2>=4.25.0
+PyMuPDF>=1.24.0
+
+# Archives
+rarfile>=4.2
+py7zr>=0.21.0
+
+# Data / utils
+numpy>=1.26.0
+pandas>=2.1.0
+pyyaml>=6.0.1
+tqdm>=4.66.0
+python-dotenv>=1.0.0
+click>=8.1.7
+rich>=13.7.0
+jsonschema>=4.21.0
+
+# CVAT API client (optional but used by scripts)
+cvat-sdk>=2.14.0
+requests>=2.31.0
+
+# Dev / test
+pytest>=8.0.0
+ruff>=0.4.0

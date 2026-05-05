@@ -25,51 +25,78 @@ class UnsafeArchiveError(RuntimeError):
     """Raised when an archive entry violates safety checks."""
 
 RAR_CLI_INSTALL_HINT = (
-    "RAR extraction needs a system tool. Install one of: "
-    "`p7zip-full` (provides `7z`), or `unrar`. "
-    "Example: sudo apt install -y p7zip-full unrar"
+    "RAR needs a system unpacker on PATH. "
+    "RARLAB `unrar` understands almost all WinRAR compression methods; "
+    "`7z` from p7zip often fails with “Unsupported Method” on modern RAR. "
+    "Install: sudo apt install -y unrar   (Ubuntu: package may be in `multiverse`). "
+    "Optional: sudo apt install -y p7zip-full"
 )
 
 
-def _which_rar_extractor() -> tuple[str, list[str]] | None:
-    """Return ``(display_name, argv_prefix)`` if a CLI extractor is on ``PATH``."""
-
-    if shutil.which("7z"):
-        return ("7z", ["7z"])
-    if shutil.which("7zz"):  # standalone 7-Zip on some distros
-        return ("7zz", ["7zz"])
+def _rar_cli_candidates() -> list[tuple[str, list[str]]]:
+    """CLI tools to try for RAR, **best compatibility first**."""
+    out: list[tuple[str, list[str]]] = []
     if shutil.which("unrar"):
-        return ("unrar", ["unrar"])
-    return None
+        out.append(("unrar", ["unrar"]))
+    if shutil.which("7z"):
+        out.append(("7z", ["7z"]))
+    if shutil.which("7zz"):
+        out.append(("7zz", ["7zz"]))
+    return out
+
+
+def _clear_extract_dir(dest: Path) -> None:
+    """Remove everything under ``dest`` (keeps ``dest`` itself). Used between unpack retries."""
+    dest = dest.resolve()
+    if not dest.is_dir():
+        return
+    for child in list(dest.iterdir()):
+        if child.is_symlink() or child.is_file():
+            child.unlink(missing_ok=True)
+        else:
+            shutil.rmtree(child, ignore_errors=True)
+
+
+def _run_rar_cli(name: str, exe: list[str], archive: Path, dest: Path) -> subprocess.CompletedProcess[bytes]:
+    if name == "unrar":
+        # Paths preserved, overwrite, quiet; trailing path separator for destination.
+        cmd = [exe[0], "x", "-o+", "-idq", str(archive), str(dest) + os.sep]
+    else:
+        # No space between ``-o`` and the path (7-Zip syntax).
+        cmd = [*exe, "x", "-bb0", "-y", f"-o{dest}", str(archive)]
+    return subprocess.run(cmd, capture_output=True, text=False)
 
 
 def _extract_rar_via_cli(archive: Path, dest: Path, *, max_total_bytes: int) -> None:
-    """Extract RAR using ``7z`` or ``unrar`` (``rarfile`` itself does not ship binaries)."""
-    tool = _which_rar_extractor()
-    if tool is None:
+    """Extract RAR using ``unrar`` and/or ``7z`` (``rarfile`` does not ship binaries).
+
+    Tries **unrar first** — p7zip cannot decode some RAR compression methods
+    (``ERROR: Unsupported Method``). If a tool fails, the destination is
+    cleared before the next attempt so we never mix partial unpacks.
+    """
+    candidates = _rar_cli_candidates()
+    if not candidates:
         raise UnsafeArchiveError(RAR_CLI_INSTALL_HINT)
 
-    name, exe = tool
     dest = dest.resolve()
     archive = archive.resolve()
     dest.mkdir(parents=True, exist_ok=True)
 
-    if name in ("7z", "7zz"):
-        # No space between ``-o`` and the path (7-Zip syntax).
-        cmd = [*exe, "x", "-bb0", "-y", f"-o{dest}", str(archive)]
-    else:
-        # unrar: extract with paths, overwrite, quiet; last arg is destination dir.
-        cmd = [exe[0], "x", "-o+", "-idq", str(archive), str(dest) + os.sep]
-
-    proc = subprocess.run(cmd, capture_output=True, text=False)
-    if proc.returncode != 0:
+    last_log = ""
+    for name, exe in candidates:
+        proc = _run_rar_cli(name, exe, archive, dest)
         err = (proc.stderr or proc.stdout or b"").decode("utf-8", errors="replace").strip()
-        tail = f": {err}" if err else ""
-        raise UnsafeArchiveError(
-            f"RAR extractor {name!r} failed with exit code {proc.returncode}{tail}"
-        )
+        if proc.returncode == 0:
+            _audit_extracted_tree(dest, max_total_bytes=max_total_bytes)
+            return
+        last_log = f"RAR extractor {name!r} failed (exit {proc.returncode}):\n{err}"
+        _clear_extract_dir(dest)
 
-    _audit_extracted_tree(dest, max_total_bytes=max_total_bytes)
+    raise UnsafeArchiveError(
+        f"{last_log}\n\n"
+        "If you saw “Unsupported Method” from `7z`, install RARLAB `unrar` and rerun.\n"
+        f"{RAR_CLI_INSTALL_HINT}"
+    )
 
 
 def _audit_extracted_tree(dest: Path, *, max_total_bytes: int) -> None:
@@ -189,8 +216,7 @@ def iter_files(root: Path | str, *, suffixes: Iterable[str] | None = None) -> It
 # Backend implementations
 # -----------------------------------------------------------------------------
 def _extract_rar(archive: Path, dest: Path, *, max_total_bytes: int) -> None:
-    # Prefer a real CLI (`7z` / `unrar`): `rarfile` is just a wrapper around them.
-    if _which_rar_extractor() is not None:
+    if _rar_cli_candidates():
         _extract_rar_via_cli(archive, dest, max_total_bytes=max_total_bytes)
         return
     try:

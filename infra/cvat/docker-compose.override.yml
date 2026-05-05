@@ -4,12 +4,32 @@
 # worker containers as /home/django/share, so labelers can pick images
 # directly from the project.
 #
+# Traefik routers in upstream CVAT use Host(`${CVAT_HOST:-localhost}`), so UI
+# and API respond only when the HTTP Host matches that literal (not when you
+# open http://<LAN-IP>:8080). Below we replace routing with HostRegexp(`.*`)
+# plus the same PathPrefix guards so CVAT accepts any reachable host/IP —
+# LAN, VPN, public DNS — while preserving API vs UI path split via priority.
+#
 # Usage:
 #   bash setup_cvat.sh up
+#
+# SECURITY: exposing CVAT beyond localhost requires a strong password, VPN or
+# a reverse proxy with TLS; do not put an open CVAT directly on the public
+# Internet without hardening.
 # =============================================================================
 
 services:
   cvat_server:
+    labels:
+      # Higher priority wins when several routers match (e.g. /api/).
+      traefik.http.routers.cvat.priority: "100"
+      # One line — Traefik must not receive embedded newlines inside the rule.
+      traefik.http.routers.cvat.rule: >-
+        HostRegexp(`.*`) &&
+        (PathPrefix(`/api/`)
+        || PathPrefix(`/static/`)
+        || PathPrefix(`/admin`)
+        || PathPrefix(`/django-rq`))
     environment:
       CVAT_SHARE_NAME: "share"
       CVAT_SHARE_DIR: "/home/django/share"
@@ -31,6 +51,11 @@ services:
   cvat_worker_quality_reports:
     volumes:
       - cvat_share:/home/django/share:rw
+
+  cvat_ui:
+    labels:
+      traefik.http.routers.cvat-ui.priority: "50"
+      traefik.http.routers.cvat-ui.rule: HostRegexp(`.*`)
 
 volumes:
   cvat_share:

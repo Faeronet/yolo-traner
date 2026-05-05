@@ -1,0 +1,43 @@
+# CVAT Grafana /analytics routed for any Host (LAN IP, DNS, Tailscale…).
+# Replaces components/analytics/grafana_conf.yml during `setup_cvat.sh up` when
+# CVAT_ANALYTICS_ANY_HOST is not 0.
+http:
+  routers:
+    grafana:
+      entryPoints:
+        - web
+      middlewares:
+        - analytics-auth
+        - strip-prefix
+      service: grafana
+      rule: HostRegexp(`.*`) && PathPrefix(`/analytics`)
+    grafana_https:
+      entryPoints:
+        - websecure
+      middlewares:
+        - analytics-auth
+        - strip-prefix
+      service: grafana
+      tls: {}
+      rule: HostRegexp(`.*`) && PathPrefix(`/analytics`)
+
+  middlewares:
+    analytics-auth:
+      forwardauth:
+        address: http://cvat_server:8080/analytics
+        authRequestHeaders:
+          - "Cookie"
+          - "Authorization"
+
+    strip-prefix:
+      stripprefix:
+        prefixes:
+          - "/analytics"
+
+  services:
+    grafana:
+      loadBalancer:
+        servers:
+          # Same defaults as upstream docker-compose Traefik env
+          - url: http://grafana:3000
+        passHostHeader: false

@@ -26,8 +26,40 @@ bash setup_cvat.sh check-share
 bash setup_cvat.sh down
 ```
 
-The default exposed URL is `http://localhost:8080`. Override with `CVAT_HOST`
-and `CVAT_PORT` in the project `.env`.
+## Access from LAN, VPN or other subnets
+
+Upstream CVAT’s Traefik rules use **`Host(${CVAT_HOST})`**, so opening
+`http://<server-LAN-ip>:8080` did not route to the UI. This project overrides
+routing so **API, UI and Grafana `/analytics`** accept **any Host header**:
+
+* `infra/cvat/docker-compose.override.yml` — routers use `HostRegexp` so any
+  `Host:` / IP works, with priorities so `/api/` still hits the backend.
+* When **`CVAT_ANALYTICS_ANY_HOST=1`** (default), `setup_cvat.sh up` copies
+  `infra/cvat/grafana_traefik_any_host.yml` over
+  `cvat_src/components/analytics/grafana_conf.yml` after each upstream
+  `git reset` (stock is saved as `grafana_conf.yml.bak.yolo-train`).
+
+Docker still publishes **`8080/tcp` on all interfaces** (`0.0.0.0`), which is
+the usual default mapping.
+
+Firewall (example):
+
+```bash
+sudo ufw allow 8080/tcp comment 'CVAT'
+```
+
+Use a **strong** superuser password, VPN, or HTTPS reverse-proxy when the host
+is reachable from untrusted networks.
+
+## Environment
+
+See project `.env.example`:
+
+* **`CVAT_ANALYTICS_ANY_HOST`** — `1`: patch Grafana routing for any Host;
+  `0`: keep stock Grafana rules (then set **`CVAT_HOST`** to the same name or IP
+  the browser uses).
+* **`CVAT_PORT`** — informational in our scripts; Traefik’s host port is fixed
+  in CVAT’s upstream `docker-compose.yml` (8080) unless you change it there.
 
 ## What gets mounted
 

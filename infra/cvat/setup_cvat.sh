@@ -31,8 +31,15 @@ CVAT_SHARE_PATH="${CVAT_SHARE_PATH:-${PROJECT_ROOT}/data/cvat_shared}"
 CVAT_SUPERUSER_USERNAME="${CVAT_SUPERUSER_USERNAME:-admin}"
 CVAT_SUPERUSER_EMAIL="${CVAT_SUPERUSER_EMAIL:-admin@example.com}"
 CVAT_SUPERUSER_PASSWORD="${CVAT_SUPERUSER_PASSWORD:-}"
+CVAT_ANALYTICS_ANY_HOST="${CVAT_ANALYTICS_ANY_HOST:-1}"
 
 export CVAT_HOST CVAT_PORT CVAT_SHARE_PATH
+
+_cmd_hint_lan_ips() {
+    if command -v hostname >/dev/null 2>&1; then
+        hostname -I 2>/dev/null | awk '{ for (i=1;i<=NF;i++) print $i }'
+    fi
+}
 
 cmd_up() {
     mkdir -p "${CVAT_SHARE_PATH}"
@@ -48,13 +55,33 @@ cmd_up() {
 
     cp "${OVERRIDE_FILE}" "${CVAT_SRC_DIR}/docker-compose.override.yml"
 
-    echo "Starting CVAT (host=${CVAT_HOST} port=${CVAT_PORT}, share=${CVAT_SHARE_PATH}) ..."
+    local grafana_upstream="${CVAT_SRC_DIR}/components/analytics/grafana_conf.yml"
+    local grafana_any="${HERE}/grafana_traefik_any_host.yml"
+
+    # Let UI/API (and Grafana) answer on any reachable Host/IP (Traefik routers).
+    if [[ "${CVAT_ANALYTICS_ANY_HOST}" != "0" ]] && [[ -f "${grafana_any}" ]] && [[ -f "${grafana_upstream}" ]]; then
+        cp "${grafana_upstream}" "${grafana_upstream}.bak.yolo-train"
+        cp "${grafana_any}" "${grafana_upstream}"
+        echo "Grafana Traefik route patched for any Host (CVAT_ANALYTICS_ANY_HOST=${CVAT_ANALYTICS_ANY_HOST})."
+    elif [[ "${CVAT_ANALYTICS_ANY_HOST}" == "0" ]]; then
+        echo "CVAT_ANALYTICS_ANY_HOST=0 → keeping upstream Grafana Host(\${CVAT_HOST}) routing."
+        echo "Set CVAT_HOST in .env to the hostname/IP browsers use."
+    fi
+
+    echo "Starting CVAT (CVAT_HOST=${CVAT_HOST} port=${CVAT_PORT}, share=${CVAT_SHARE_PATH}) ..."
+    echo "HTTPS Host header routing is permissive — open http(s)://<any-interface-ip>:${CVAT_PORT} from LAN/VPN/etc."
     pushd "${CVAT_SRC_DIR}" >/dev/null
     CVAT_HOST="${CVAT_HOST}" CVAT_VERSION=latest \
         docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
     popd >/dev/null
 
-    echo "CVAT is starting at http://${CVAT_HOST}:${CVAT_PORT}"
+    echo "CVAT publishes docker port ${CVAT_PORT} on all interfaces (0.0.0.0) by default."
+    echo "Example URLs: http://${CVAT_HOST}:${CVAT_PORT}"
+    while read -r ip; do
+        [[ "${ip}" == "127.0.0.1" ]] && continue
+        [[ -z "${ip}" ]] && continue
+        echo "                 http://${ip}:${CVAT_PORT}"
+    done < <(_cmd_hint_lan_ips)
     echo "Run 'bash setup_cvat.sh create-superuser' once it is healthy."
 }
 
@@ -106,8 +133,9 @@ Usage: $0 {up|down|create-superuser|check-share}
   check-share       Verify that data/cvat_shared is mounted as /home/django/share.
 
 Environment (read from project .env when present):
-  CVAT_HOST=localhost
+  CVAT_HOST=localhost          # Grafana advertised URL / docs; routers accept any Host
   CVAT_PORT=8080
+  CVAT_ANALYTICS_ANY_HOST=1   # Patch Grafana routing for LAN IP/DNS access (set 0 to keep stock CVAT_HOST-only)
   CVAT_SHARE_PATH=/home/.../yolo-train/data/cvat_shared
   CVAT_SUPERUSER_USERNAME=admin
   CVAT_SUPERUSER_EMAIL=admin@example.com

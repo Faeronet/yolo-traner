@@ -12,6 +12,8 @@ pypdfium2>=4.25.0
 PyMuPDF>=1.24.0
 
 # Archives
+# RAR: pip package `rarfile` does not bundle an extractor. `make prepare` prefers
+# system `7z` (p7zip-full) or `unrar`; otherwise install: sudo apt install -y p7zip-full unrar
 rarfile>=4.2
 py7zr>=0.21.0
 

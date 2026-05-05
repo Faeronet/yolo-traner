@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import tarfile
 import zipfile
 from pathlib import Path
@@ -22,6 +23,89 @@ DEFAULT_MAX_TOTAL_BYTES = 200 * 1024**3  # 200 GiB
 
 class UnsafeArchiveError(RuntimeError):
     """Raised when an archive entry violates safety checks."""
+
+RAR_CLI_INSTALL_HINT = (
+    "RAR extraction needs a system tool. Install one of: "
+    "`p7zip-full` (provides `7z`), or `unrar`. "
+    "Example: sudo apt install -y p7zip-full unrar"
+)
+
+
+def _which_rar_extractor() -> tuple[str, list[str]] | None:
+    """Return ``(display_name, argv_prefix)`` if a CLI extractor is on ``PATH``."""
+
+    if shutil.which("7z"):
+        return ("7z", ["7z"])
+    if shutil.which("7zz"):  # standalone 7-Zip on some distros
+        return ("7zz", ["7zz"])
+    if shutil.which("unrar"):
+        return ("unrar", ["unrar"])
+    return None
+
+
+def _extract_rar_via_cli(archive: Path, dest: Path, *, max_total_bytes: int) -> None:
+    """Extract RAR using ``7z`` or ``unrar`` (``rarfile`` itself does not ship binaries)."""
+    tool = _which_rar_extractor()
+    if tool is None:
+        raise UnsafeArchiveError(RAR_CLI_INSTALL_HINT)
+
+    name, exe = tool
+    dest = dest.resolve()
+    archive = archive.resolve()
+    dest.mkdir(parents=True, exist_ok=True)
+
+    if name in ("7z", "7zz"):
+        # No space between ``-o`` and the path (7-Zip syntax).
+        cmd = [*exe, "x", "-bb0", "-y", f"-o{dest}", str(archive)]
+    else:
+        # unrar: extract with paths, overwrite, quiet; last arg is destination dir.
+        cmd = [exe[0], "x", "-o+", "-idq", str(archive), str(dest) + os.sep]
+
+    proc = subprocess.run(cmd, capture_output=True, text=False)
+    if proc.returncode != 0:
+        err = (proc.stderr or proc.stdout or b"").decode("utf-8", errors="replace").strip()
+        tail = f": {err}" if err else ""
+        raise UnsafeArchiveError(
+            f"RAR extractor {name!r} failed with exit code {proc.returncode}{tail}"
+        )
+
+    _audit_extracted_tree(dest, max_total_bytes=max_total_bytes)
+
+
+def _audit_extracted_tree(dest: Path, *, max_total_bytes: int) -> None:
+    """Ensure every path stays under ``dest`` (no traversal) and caps total size."""
+    dest_r = dest.resolve()
+    total = 0
+    for root, _dirs, files in os.walk(dest_r, topdown=True, followlinks=False):
+        root_p = Path(root)
+        for fname in files:
+            path = root_p / fname
+            resolved = path.resolve()
+            if not _is_within(resolved, dest_r):
+                raise UnsafeArchiveError(f"Extracted path escapes destination: {path}")
+            if resolved.is_file():
+                total += resolved.stat().st_size
+                if total > max_total_bytes:
+                    raise UnsafeArchiveError(
+                        f"Extracted data exceeds max_total_bytes={max_total_bytes}"
+                    )
+
+
+def _extract_rar_via_rarfile(archive: Path, dest: Path, *, max_total_bytes: int) -> None:
+    with rarfile.RarFile(archive) as rf:
+        total = 0
+        for info in rf.infolist():
+            if info.isdir():
+                continue
+            target = _check_member_name(info.filename, dest)
+            total += int(getattr(info, "file_size", 0) or 0)
+            if total > max_total_bytes:
+                raise UnsafeArchiveError(
+                    f"Archive {archive.name} exceeds max_total_bytes={max_total_bytes}"
+                )
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with rf.open(info) as src, target.open("wb") as dst:
+                shutil.copyfileobj(src, dst)
 
 
 def _is_within(child: Path, parent: Path) -> bool:
@@ -105,20 +189,14 @@ def iter_files(root: Path | str, *, suffixes: Iterable[str] | None = None) -> It
 # Backend implementations
 # -----------------------------------------------------------------------------
 def _extract_rar(archive: Path, dest: Path, *, max_total_bytes: int) -> None:
-    with rarfile.RarFile(archive) as rf:
-        total = 0
-        for info in rf.infolist():
-            if info.isdir():
-                continue
-            target = _check_member_name(info.filename, dest)
-            total += int(getattr(info, "file_size", 0) or 0)
-            if total > max_total_bytes:
-                raise UnsafeArchiveError(
-                    f"Archive {archive.name} exceeds max_total_bytes={max_total_bytes}"
-                )
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with rf.open(info) as src, target.open("wb") as dst:
-                shutil.copyfileobj(src, dst)
+    # Prefer a real CLI (`7z` / `unrar`): `rarfile` is just a wrapper around them.
+    if _which_rar_extractor() is not None:
+        _extract_rar_via_cli(archive, dest, max_total_bytes=max_total_bytes)
+        return
+    try:
+        _extract_rar_via_rarfile(archive, dest, max_total_bytes=max_total_bytes)
+    except rarfile.RarCannotExec as exc:
+        raise UnsafeArchiveError(RAR_CLI_INSTALL_HINT) from exc
 
 
 def _extract_zip(archive: Path, dest: Path, *, max_total_bytes: int) -> None:

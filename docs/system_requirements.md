@@ -19,14 +19,18 @@ much lighter.
 * NVIDIA Container Toolkit (`nvidia-container-toolkit`)
 * Python 3.10 or 3.11
 * `git`, `curl`
-* `7z` / `p7zip-full`
+* `7z` / `p7zip-full` (**required for `.rar` archives**: the `rarfile` Python
+  package only drives an external tool; without `7z` or `unrar`, RAR extraction
+  fails with *Cannot find working tool*)
+* optionally `unrar` (non-free build on some distros) — either `7z` or `unrar`
+  is enough
 * `poppler-utils` **or** `mupdf-tools` (only required if you want to render
   PDFs outside Python — the project uses PyMuPDF by default)
 
 ```bash
 sudo apt update
 sudo apt install -y \
-    git curl p7zip-full poppler-utils \
+    git curl p7zip-full unrar poppler-utils \
     python3.11 python3.11-venv python3.11-dev \
     docker.io docker-compose-plugin \
     nvidia-container-toolkit
